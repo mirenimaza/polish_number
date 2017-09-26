@@ -34,6 +34,8 @@ module PolishNumber
   UNITIES_ORDINALS = ['', 'pierwszy ', 'drugi ', 'trzeci ', 'czwarty ', 'piąty ', 'szósty ', 'siódmy ', 'ósmy ',
                       'dziewiąty ']
 
+  MASCULINE_PERSONAL_UNITIES = ['zerowi', 'pierwsi', 'drudzy', 'trzeci', 'czwarci']
+
   ZERO_ORDINALS = 'zerowy'
 
   TYPES = [:cardinal, :ordinal]
@@ -83,13 +85,25 @@ module PolishNumber
           " Choose one from: #{GENDERS.inspect}"
     end
 
-    if options[:case] && !CASES.include?(options[:case])
-      raise ArgumentError, "Unknown :case option '#{options[:case].inspect}'." +
+    if options[:grammatical_case] && !CASES.include?(options[:grammatical_case])
+      raise ArgumentError, "Unknown :grammatical_case option '#{options[:grammatical_case].inspect}'." +
           " Choose one from: #{CASES.inspect}"
     end
 
     unless options[:type] != :ordinal || (((0..999).include? number) && (number.is_a? Integer))
       raise ArgumentError, 'for ordinal numbers, number should be integer and in 0..999 range'
+    end
+
+    if options[:type] != :ordinal && options[:grammatical_case] == :instrumental
+      raise ArgumentError, 'this gem provides instrumental case only for ordinal numbers'
+    end
+
+    if options[:grammatical_case] == :instrumental && options[:gender] != :masculine
+      raise ArgumentError, 'this gem provides only masculine gender for instrumental case'
+    end
+
+    unless options[:grammatical_case] == :nominative || options[:grammatical_case] == :instrumental
+      raise ArgumentError, 'this gem provides only nominative and instrumental cases'
     end
 
     if options[:type] == :ordinal && options[:gender] == :masculine_personal && ((0..4).include? number) == false
@@ -104,12 +118,13 @@ module PolishNumber
 
   def self.translate(number, options={})
 
-    options = validate(number, options)
-
     options[:cents] ||= :auto
     options[:type] ||= :cardinal
     options[:gender] ||= :masculine
-    options[:case] ||= :nominative
+    options[:grammatical_case] ||= :nominative
+
+    options = validate(number, options)
+
     number = number.to_i if options[:cents]==:no
     formatted_number = sprintf('%012.2f', number)
     currency = CURRENCIES[options[:currency] || :NO]
@@ -158,19 +173,19 @@ module PolishNumber
       if options[:type] == :ordinal
         result = ZERO_ORDINALS.dup
         if result != ''
-          if options[:case] == :nominative
+          if options[:grammatical_case] == :nominative
             if options[:gender] == :masculine
               result
             elsif options[:gender] == :feminine
-              result = result.reverse.sub(result[-2], 'a').reverse
+              result = result.reverse.sub(result[-1], 'a').reverse
             elsif options[:gender] == :neuter || options[:gender] == :non_masculine
-              result = result.reverse.sub(result[-2], 'e').reverse
-            else
-              result
+              result = result.reverse.sub(result[-1], 'e').reverse
+            elsif options[:gender] == :masculine_personal
+              result = MASCULINE_PERSONAL_UNITIES[0]
             end
-          elsif options[:case] == :instrumental
+          elsif options[:grammatical_case] == :instrumental
             if options[:gender] == :masculine
-              result << hundred.sub(' ', 'm ')
+              result = result + 'm'
             else
               ''
             end
@@ -207,7 +222,7 @@ module PolishNumber
       if digits[1] == 0 && digits[2] == 0
         hundred = HUNDREDS_ORDINALS[digits[0]]
         if hundred != ''
-          if options[:case] == :nominative
+          if options[:grammatical_case] == :nominative
             if options[:gender] == :masculine
               result << hundred
             elsif options[:gender] == :feminine
@@ -217,7 +232,7 @@ module PolishNumber
             else
               result << hundred
             end
-          elsif options[:case] == :instrumental
+          elsif options[:grammatical_case] == :instrumental
             if options[:gender] == :masculine
               result << hundred.sub(' ', 'm ')
             else
@@ -231,7 +246,7 @@ module PolishNumber
       if digits[1] == 1 && digits[2] != 0
         teen = TEENS_ORDINALS[digits[2]]
         if teen != ''
-          if options[:case] == :nominative
+          if options[:grammatical_case] == :nominative
             if options[:gender] == :masculine
               result << teen
             elsif options[:gender] == :feminine
@@ -241,7 +256,7 @@ module PolishNumber
             else
               result << teen
             end
-          elsif options[:case] == :instrumental
+          elsif options[:grammatical_case] == :instrumental
             if options[:gender] == :masculine
               result << teen.sub(' ', 'm ')
             else
@@ -252,7 +267,7 @@ module PolishNumber
       else
         ten = TENS_ORDINALS[digits[1]]
         if ten != ''
-          if options[:case] == :nominative
+          if options[:grammatical_case] == :nominative
             if options[:gender] == :masculine
               result << ten
             elsif options[:gender] == :feminine
@@ -262,7 +277,7 @@ module PolishNumber
             else
               result << ten
             end
-          elsif options[:case] == :instrumental
+          elsif options[:grammatical_case] == :instrumental
             if options[:gender] == :masculine
               result << ten.sub(' ', 'm ')
             else
@@ -290,11 +305,15 @@ module PolishNumber
     if options[:type] == :ordinal
       unity = UNITIES_ORDINALS[digits[2]]
       if unity != ''
-        if options[:case] == :nominative
+        if options[:grammatical_case] == :nominative
           if options[:gender] == :masculine
             unity
           elsif options[:gender] == :feminine
-            unity.reverse.sub(unity[-2], 'a').reverse
+            if unity == 'trzeci '
+              'trzecia '
+            else
+              unity.reverse.sub(unity[-2], 'a').reverse
+            end
           elsif options[:gender] == :neuter || options[:gender] == :non_masculine
             if unity[-2] == 'i'
               unity.reverse.sub(unity[-1], ' e').reverse
@@ -302,21 +321,11 @@ module PolishNumber
               unity.reverse.sub(unity[-2], 'e').reverse
             end
           elsif options[:gender] == :masculine_personal
-            if digits[2] == 0 && object == :she
-              'zerowi '
-            elsif digits[2] == 1
-              'pierwsi '
-            elsif digits[2] == 2
-              'drudzy '
-            elsif digits[2] == 3
-              'trzeci '
-            elsif digits[2] == 4
-              'czwarci '
-            end
+            MASCULINE_PERSONAL_UNITIES[digits[2]]
           else
             unity
           end
-        elsif options[:case] == :instrumental
+        elsif options[:grammatical_case] == :instrumental
           if options[:gender] == :masculine
             unity.sub(' ', 'm ')
           else
