@@ -44,7 +44,15 @@ Or install it yourself as:
 
     PolishNumber.translate(35.05, :currency => :COWS) #=> trzydzieści pięć krów i pięć serów
 
+## Ordinal numbers
 
+The gem translate ordinal numbers in 0..99 range for all cases (nominative, genitive, dative, accusative, instrumental, locative, vocative) and all gender (masculine, feminine, neuter, masculine_personal, non_masculine)
+For masculine_personal gender and nominative/vocative case number should be in 0..4 range
+
+    PolishNumber.translate_ordinal(34, :grammatical_case => :nominative, :gender => :masculine) #=> trzydziesty czwarty
+    PolishNumber.translate_ordinal(18, :grammatical_case => :dative, :gender => :feminine) #=> osiemnastej
+    PolishNumber.translate_ordinal(20, :grammatical_case => :instrumental, :gender => :neuter) #=> dwudziestym
+    PolishNumber.translate_ordinal(2, :grammatical_case => :nominative, :gender => :masculine_personal) #=> drudzy
 
 ## Contributing
 
