@@ -164,6 +164,7 @@ module PolishNumber
     options = validate(number, options)
 
     options[:cents] ||= :auto
+    options[:colloquially] ||= false
     number = number.to_i if options[:cents]==:no
     formatted_number = sprintf('%012.2f', number)
     currency = CURRENCIES[options[:currency] || :NO]
@@ -193,11 +194,11 @@ module PolishNumber
           result << ' i '
         end
       end
-      result << process_0_999(digits_cents, number_cents, currency[:gender_100] || :hi) if digits
+      result << process_0_999(digits_cents, options[:colloquially], number_cents, currency[:gender_100] || :hi) if digits
       result << ZERO.dup if formatted_sub_number == '00'
       result.strip!
       result << ' '
-      result << currency[classify(formatted_sub_number.to_i, digits_cents, true)]
+      result << currency[classify(digits_cents, true)]
     elsif options[:cents] == :digits
       result << ' '
       result << formatted_sub_number
@@ -212,25 +213,25 @@ module PolishNumber
       result = ZERO.dup
     else
       result = ''
-      result << process_0_999(digits[0..2], number, :number)
+      result << process_0_999(digits[0..2], options[:colloquially], number, :number)
       result << millions(number.to_i/1000000, digits[0..2])
       result.strip!
       result << ' '
-      result << process_0_999(digits[3..5], number, :number)
+      result << process_0_999(digits[3..5], options[:colloquially], number, :number)
       result << thousands(number.to_i/1000, digits[3..5])
       result.strip!
       result << ' '
-      result << process_0_999(digits[6..8], number, currency[:gender] || :hi)
+      result << process_0_999(digits[6..8], options[:colloquially], number, currency[:gender] || :hi)
       result.strip!
     end
 
     if options[:currency] && !result.empty?
-      result << ' ' + currency[classify(number.to_i, digits)]
+      result << ' ' + currency[classify(digits)]
     end
     result
   end
 
-  def self.process_0_999(digits, number, object)
+  def self.process_0_999(digits, colloquially, number, object)
     result = ''
     result << HUNDREDS[digits[0]]
 
@@ -238,20 +239,20 @@ module PolishNumber
       result << TEENS[digits[2]]
     else
       result << TENS[digits[1]]
-      result << process_0_9(digits, number, object)
+      result << process_0_9(digits, colloquially, number, object)
     end
 
     result
   end
 
-  def self.process_0_9(digits, number, object)
+  def self.process_0_9(digits, colloquially, number, object)
     if digits[2] == 2 && object == :she
       'dwie '
     elsif number == 1 && object == :she
       'jedna '
     elsif number == 1 && object == :it
       'jedno '
-    elsif digits == [0,0,1] && object == :number
+    elsif digits == [0,0,1] && object == :number && colloquially
       ''
     else
       UNITIES[digits[2]]
@@ -262,7 +263,7 @@ module PolishNumber
     if number == 0 || digits == [0, 0, 0]
       ''
     else
-      THOUSANDS[classify(number, digits)]
+      THOUSANDS[classify(digits)]
     end
   end
 
@@ -270,15 +271,15 @@ module PolishNumber
     if number == 0 || digits == [0, 0, 0]
       ''
     else
-      MILLIONS[classify(number, digits)]
+      MILLIONS[classify(digits)]
     end
   end
 
-  def self.classify(number, digits, cents=false)
-    if number == 1
+  def self.classify(digits, cents=false)
+    if digits == [0, 0, 1]
       return :one_100 if cents
       :one
-    # all numbers with 2, 3 or 4 at the end, but not teens
+      # all numbers with 2, 3 or 4 at the end, but not teens
     elsif digits && (2..4).include?(digits[-1]) && digits[-2] != 1
       return :few_100 if cents
       :few
